@@ -28,7 +28,10 @@ class Spotlight {
             beamWidthSource: 30,
             beamWidthTarget: 60,
             beamOpacity: 0.4,
-            focusSize: 120
+            focusSize: 120,
+            // Masking Features
+            maskMode: false,       // If true, darkens page except for the spotlight
+            maskOpacity: 0.9       // Opacity of the darkened area (0 to 1)
         };
 
         this.options = { ...this.defaults, ...options };
@@ -44,7 +47,6 @@ class Spotlight {
 
     /**
      * Injects the necessary CSS for the library components.
-     * Only runs once per page session.
      */
     static injectStyles() {
         if (document.getElementById('spotlight-core-styles')) return;
@@ -60,7 +62,7 @@ class Spotlight {
             .spotlight-focus {
                 position: absolute;
                 pointer-events: none;
-                z-index: 20;
+                z-index: 100; /* High z-index to stay above mask */
                 transform: translate(-50%, -50%);
                 border-radius: 50%;
                 transition: background 0.3s ease;
@@ -80,7 +82,17 @@ class Spotlight {
                 width: 100%;
                 height: 100%;
                 pointer-events: none;
-                z-index: 10;
+                z-index: 90;
+            }
+            .spotlight-mask {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                z-index: 80;
+                background: black;
+                display: none;
+                -webkit-mask-repeat: no-repeat;
+                mask-repeat: no-repeat;
             }
         `;
         document.head.appendChild(style);
@@ -90,10 +102,13 @@ class Spotlight {
         // 1. Create Focal Circle
         this.focusEl = document.createElement('div');
         this.focusEl.className = 'spotlight-focus';
-        this.focusEl.style.width = `${this.options.focusSize}px`;
-        this.focusEl.style.height = `${this.options.focusSize}px`;
+        this.focusEl.style.width = this.focusEl.style.height = `${this.options.focusSize}px`;
 
-        // 2. Create SVG Beam
+        // 2. Create Mask Overlay
+        this.maskEl = document.createElement('div');
+        this.maskEl.className = 'spotlight-mask';
+
+        // 3. Create SVG Beam
         const svgId = `beam-grad-${Math.random().toString(36).substr(2, 9)}`;
         this.svgContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         this.svgContainer.setAttribute('class', 'spotlight-beam-svg');
@@ -109,10 +124,16 @@ class Spotlight {
         `;
 
         this.beamPoly = this.svgContainer.querySelector('.beam-poly');
-        this.gradId = svgId;
+        
+        // Ensure container is ready for absolute positioning
+        if (this.options.container !== document.body) {
+            this.options.container.classList.add('spotlight-container');
+        }
 
-        this.options.container.appendChild(this.svgContainer);
-        this.options.container.appendChild(this.focusEl);
+        const parent = this.options.container;
+        parent.appendChild(this.maskEl);
+        parent.appendChild(this.svgContainer);
+        parent.appendChild(this.focusEl);
 
         this.update();
     }
@@ -126,7 +147,7 @@ class Spotlight {
         };
 
         this._handleMouseDown = (e) => {
-            if (this.options.mode === 'fixed' && e.target === this.options.container) {
+            if (this.options.mode === 'fixed') {
                 this.targetPos.x = e.clientX;
                 this.targetPos.y = e.clientY;
             }
@@ -137,37 +158,47 @@ class Spotlight {
     }
 
     update() {
-        const { color, glowSize, showDot, showFill, sourcePosition } = this.options;
+        const o = this.options;
 
-        this.focusEl.style.borderColor = color;
-        this.focusEl.style.boxShadow = `0 0 ${glowSize} ${color}, inset 0 0 calc(${glowSize} * 0.6) ${color}`;
-        this.focusEl.style.background = showFill 
-            ? `radial-gradient(circle, ${color}33 0%, transparent 70%)` 
+        // Visuals
+        this.focusEl.style.borderColor = o.color;
+        this.focusEl.style.borderStyle = 'solid';
+        this.focusEl.style.borderWidth = '2px';
+        this.focusEl.style.boxShadow = `0 0 ${o.glowSize} ${o.color}, inset 0 0 calc(${o.glowSize} * 0.6) ${o.color}`;
+        this.focusEl.style.background = o.showFill 
+            ? `radial-gradient(circle, ${o.color}33 0%, transparent 70%)` 
             : 'transparent';
 
-        let dotStyle = this.focusEl.querySelector('.spot-dot');
-        if (!dotStyle) {
-            dotStyle = document.createElement('div');
-            dotStyle.className = 'spot-dot';
-            dotStyle.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;';
-            this.focusEl.appendChild(dotStyle);
+        // Internal Dot
+        let dot = this.focusEl.querySelector('.spot-dot');
+        if (!dot) {
+            dot = document.createElement('div');
+            dot.className = 'spot-dot';
+            dot.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;';
+            this.focusEl.appendChild(dot);
         }
-        dotStyle.style.width = showDot ? '8px' : '0';
-        dotStyle.style.height = showDot ? '8px' : '0';
-        dotStyle.style.background = color;
-        dotStyle.style.boxShadow = `0 0 10px ${color}`;
+        dot.style.display = o.showDot ? 'block' : 'none';
+        dot.style.width = dot.style.height = '8px';
+        dot.style.background = o.color;
+        dot.style.boxShadow = `0 0 10px ${o.color}`;
 
+        // SVG Beam Gradient
         const stopStart = this.svgContainer.querySelector('.stop-start');
         const stopEnd = this.svgContainer.querySelector('.stop-end');
-        stopStart.style.stopColor = color;
-        stopEnd.style.stopColor = color;
+        stopStart.style.stopColor = o.color;
+        stopEnd.style.stopColor = o.color;
+        stopStart.style.stopOpacity = o.beamOpacity;
 
         const grad = this.svgContainer.querySelector('linearGradient');
-        if (sourcePosition === 'bottom') {
+        if (o.sourcePosition === 'bottom') {
             grad.setAttribute('y1', '100%'); grad.setAttribute('y2', '0%');
         } else {
             grad.setAttribute('y1', '0%'); grad.setAttribute('y2', '100%');
         }
+
+        // Mask Control
+        this.maskEl.style.display = o.maskMode ? 'block' : 'none';
+        this.maskEl.style.backgroundColor = `rgba(0, 0, 0, ${o.maskOpacity})`;
     }
 
     setOptions(newOptions) {
@@ -178,29 +209,32 @@ class Spotlight {
     _animate() {
         if (this.isDestroyed) return;
 
+        // Lerp movement
         this.currentPos.x += (this.targetPos.x - this.currentPos.x) * this.options.easing;
         this.currentPos.y += (this.targetPos.y - this.currentPos.y) * this.options.easing;
 
+        // Update Focus Position
         this.focusEl.style.left = `${this.currentPos.x}px`;
         this.focusEl.style.top = `${this.currentPos.y}px`;
 
+        // Update Beam Geometry
         const sourceX = window.innerWidth / 2;
         const sourceY = this.options.sourcePosition === 'bottom' ? window.innerHeight : 0;
-        
         const sW = this.options.beamWidthSource;
         const tW = this.options.beamWidthTarget;
 
-        const points = [
-            `${sourceX - sW},${sourceY}`,
-            `${sourceX + sW},${sourceY}`,
-            `${this.currentPos.x + tW},${this.currentPos.y}`,
-            `${this.currentPos.x - tW},${this.currentPos.y}`
-        ].join(' ');
+        this.beamPoly.setAttribute('points', 
+            `${sourceX - sW},${sourceY} ${sourceX + sW},${sourceY} ` +
+            `${this.currentPos.x + tW},${this.currentPos.y} ${this.currentPos.x - tW},${this.currentPos.y}`
+        );
 
-        this.beamPoly.setAttribute('points', points);
-
-        // Dispatches event for custom integration
-        window.dispatchEvent(new CustomEvent('spotlightUpdate', { detail: this.currentPos }));
+        // Update Masking Cutout
+        if (this.options.maskMode) {
+            const radius = this.options.focusSize / 2;
+            const maskCSS = `radial-gradient(circle ${radius}px at ${this.currentPos.x}px ${this.currentPos.y}px, transparent 100%, black 100%)`;
+            this.maskEl.style.webkitMaskImage = maskCSS;
+            this.maskEl.style.maskImage = maskCSS;
+        }
 
         requestAnimationFrame(() => this._animate());
     }
@@ -211,5 +245,6 @@ class Spotlight {
         window.removeEventListener('mousedown', this._handleMouseDown);
         this.focusEl.remove();
         this.svgContainer.remove();
+        this.maskEl.remove();
     }
 }
