@@ -3,190 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotlight Lab - Clean Implementation</title>
+    <title>Spotlight Engine - Masking Edition Demo</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 
-        Updated library URL to use jsDelivr. 
-        GitHub's raw.githubusercontent.com serves files as 'text/plain', 
-        which browsers block from executing for security reasons. 
-    -->
-    <script src="https://cdn.jsdelivr.net/gh/hi2rashid/spotlight-js-library@main/spotlight-js-full.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/hi2rashid/spotlight-js-library@main/spotlight-js-full.js"></script>
+
     <style>
         body {
-            background-color: #020617;
+            background-color: #0f172a;
             margin: 0;
             overflow: hidden;
             height: 100vh;
+            font-family: ui-sans-serif, system-ui, sans-serif;
         }
 
-        /* Container for the spotlight engine */
+        /* The container where the spotlight is initialized */
         #spotlight-stage {
             position: absolute;
             inset: 0;
             z-index: 1;
         }
 
-        .content-bg {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            color: #1e293b;
-            font-family: sans-serif;
-            font-size: 2rem;
-            font-weight: bold;
-            user-select: none;
-            text-align: center;
-            padding: 20px;
+        /* Sample content for the mask to reveal */
+        .page-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 40px;
             pointer-events: none;
         }
 
-        /* UI Control Panel */
+        .sample-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #475569;
+            font-weight: 800;
+            font-size: 1.5rem;
+        }
+
+        /* Control UI Styling */
         .ui-panel {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(15, 23, 42, 0.9);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 16px;
-            border-radius: 12px;
-            z-index: 100;
-            width: 260px;
+            padding: 20px;
+            border-radius: 16px;
+            z-index: 1000;
+            width: 280px;
             color: white;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
         }
 
-        .tiny-btn {
-            padding: 4px 8px;
+        .control-btn {
+            padding: 6px 12px;
             font-size: 11px;
             text-transform: uppercase;
+            font-weight: 600;
             letter-spacing: 0.05em;
-            border-radius: 4px;
+            border-radius: 6px;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
             transition: all 0.2s;
+            flex: 1;
         }
 
-        .tiny-btn:hover { background: rgba(255,255,255,0.15); }
-
-        .tiny-btn.active {
+        .control-btn.active {
             background: var(--active-theme, #22c55e);
             color: black;
             border-color: transparent;
+        }
+
+        .label-text {
+            display: block;
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 8px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Main Stage where library will inject elements -->
     <div id="spotlight-stage">
-        <div class="content-bg">SYSTEM READY</div>
+        <div class="page-content">
+            <div class="sample-card">DATA 01</div><div class="sample-card">DATA 02</div><div class="sample-card">DATA 03</div>
+            <div class="sample-card">DATA 04</div><div class="sample-card">DATA 05</div><div class="sample-card">DATA 06</div>
+            <div class="sample-card">DATA 07</div><div class="sample-card">DATA 08</div><div class="sample-card">DATA 09</div>
+            <div class="sample-card">DATA 10</div><div class="sample-card">DATA 11</div><div class="sample-card">DATA 12</div>
+        </div>
     </div>
 
-    <!-- UI Panel (Interactive Example) -->
+    <!-- UI Controls -->
     <div class="ui-panel">
-        <h2 class="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Spotlight Lab</h2>
+        <h2 class="text-xs font-bold text-slate-400 mb-6 uppercase tracking-[0.2em]">Spotlight Engine</h2>
         
-        <div class="space-y-4">
+        <div class="space-y-6">
+            <!-- Mask Mode Toggle -->
             <div>
-                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Control Mode</label>
+                <span class="label-text">Page Masking (X-Ray)</span>
                 <div class="flex gap-2">
-                    <button id="btn-mouse" onclick="setMode('mouse')" class="tiny-btn flex-1 active">Mouse</button>
-                    <button id="btn-fixed" onclick="setMode('fixed')" class="tiny-btn flex-1">Fixed</button>
+                    <button id="mask-off" onclick="toggleMask(false)" class="control-btn active">Disable</button>
+                    <button id="mask-on" onclick="toggleMask(true)" class="control-btn">Enable</button>
                 </div>
             </div>
 
+            <!-- Mask Opacity Slider -->
+            <div id="opacity-control" style="opacity: 0.5; pointer-events: none;">
+                <div class="flex justify-between mb-1">
+                    <span class="label-text">Mask Opacity</span>
+                    <span id="op-label" class="text-[10px] text-emerald-500 font-mono">0.9</span>
+                </div>
+                <input type="range" min="0" max="1" step="0.05" value="0.9" 
+                       oninput="updateOpacity(this.value)" 
+                       class="w-full accent-emerald-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Color Palette -->
             <div>
-                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Source Position</label>
+                <span class="label-text">Color</span>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="changeColor('#22c55e')" class="w-full h-6 rounded bg-green-500 border border-white/20"></button>
+                    <button onclick="changeColor('#3b82f6')" class="w-full h-6 rounded bg-blue-500 border border-white/20"></button>
+                    <button onclick="changeColor('#ef4444')" class="w-full h-6 rounded bg-red-500 border border-white/20"></button>
+                    <button onclick="changeColor('#ffffff')" class="w-full h-6 rounded bg-white border border-white/20"></button>
+                </div>
+            </div>
+
+            <!-- Quick Settings -->
+            <div>
+                <span class="label-text">Quick Toggles</span>
                 <div class="flex gap-2">
-                    <button id="btn-top" onclick="setPos('top')" class="tiny-btn flex-1 active">Top</button>
-                    <button id="btn-bottom" onclick="setPos('bottom')" class="tiny-btn flex-1">Bottom</button>
+                    <button id="dot-toggle" onclick="toggleConfig('showDot')" class="control-btn active">TOP</button>
+                    <button id="pos-toggle" onclick="toggleSource()" class="control-btn">Bottom</button>
                 </div>
-            </div>
-
-            <div>
-                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Aesthetics</label>
-                <div class="flex gap-2 mb-2">
-                    <button id="btn-dot" onclick="toggleOption('showDot')" class="tiny-btn flex-1 active">Dot</button>
-                    <button id="btn-fill" onclick="toggleOption('showFill')" class="tiny-btn flex-1 active">Fill</button>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="setColor('#22c55e')" class="tiny-btn">Green</button>
-                    <button onclick="setColor('#ef4444')" class="tiny-btn">Red</button>
-                    <button onclick="setColor('#3b82f6')" class="tiny-btn">Blue</button>
-                    <button onclick="setColor('#ffffff')" class="tiny-btn">White</button>
-                </div>
-            </div>
-
-            <div>
-                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Glow Intensity</label>
-                <input type="range" min="0" max="100" value="40" oninput="setGlow(this.value)" class="w-full accent-green-500 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
             </div>
         </div>
-        
-        <div id="instruction" class="mt-6 pt-4 border-t border-slate-800 text-[9px] text-slate-500 italic">
-            Move mouse on canvas to guide focus
+
+        <div class="mt-6 pt-4 border-t border-slate-800">
+            <p id="instruction" class="text-[9px] text-slate-500 italic text-center">
+                Guiding light with Mouse
+            </p>
         </div>
     </div>
 
+    <!-- We include the library code logic here since it's needed to run the demo -->
     <script>
-        /**
-         * INITIALIZATION AND EXAMPLE INTERFACE
-         */
-        const stage = document.getElementById('spotlight-stage');
-        let light;
 
-        window.onload = () => {
-            // Verify if the Spotlight class exists after library load
-            if (typeof Spotlight !== 'undefined') {
-                light = new Spotlight({ container: stage });
-                applyInitialUIState();
-            } else {
-                console.error("Spotlight is not defined. Ensure the library script loaded correctly.");
-                document.getElementById('instruction').textContent = "Library error: Reference not found.";
-            }
-        };
+        // --- Demo Initialization ---
+        const light = new Spotlight({ 
+            container: document.getElementById('spotlight-stage'),
+            maskMode: false 
+        });
 
-        function setMode(mode) {
-            if (!light) return;
-            light.setOptions({ mode });
-            document.getElementById('btn-mouse').classList.toggle('active', mode === 'mouse');
-            document.getElementById('btn-fixed').classList.toggle('active', mode === 'fixed');
-            stage.style.cursor = mode === 'mouse' ? 'none' : 'crosshair';
-            document.getElementById('instruction').textContent = mode === 'mouse' ? 'Move mouse to guide focus' : 'Click to set focus point';
+        function toggleMask(val) {
+            light.setOptions({ maskMode: val });
+            document.getElementById('mask-on').classList.toggle('active', val);
+            document.getElementById('mask-off').classList.toggle('active', !val);
+            document.getElementById('opacity-control').style.opacity = val ? '1' : '0.5';
+            document.getElementById('opacity-control').style.pointerEvents = val ? 'auto' : 'none';
         }
 
-        function setPos(pos) {
-            if (!light) return;
-            light.setOptions({ sourcePosition: pos });
-            document.getElementById('btn-top').classList.toggle('active', pos === 'top');
-            document.getElementById('btn-bottom').classList.toggle('active', pos === 'bottom');
+        function updateOpacity(val) {
+            light.setOptions({ maskOpacity: parseFloat(val) });
+            document.getElementById('op-label').textContent = val;
         }
 
-        function toggleOption(key) {
-            if (!light) return;
-            const next = !light.options[key];
-            light.setOptions({ [key]: next });
-            document.getElementById(key === 'showDot' ? 'btn-dot' : 'btn-fill').classList.toggle('active', next);
+        function changeColor(hex) {
+            light.setOptions({ color: hex });
+            document.documentElement.style.setProperty('--active-theme', hex);
         }
 
-        function setColor(color) {
-            if (!light) return;
-            light.setOptions({ color });
-            document.documentElement.style.setProperty('--active-theme', color);
+        function toggleConfig(key) {
+            const newVal = !light.options[key];
+            light.setOptions({ [key]: newVal });
+            document.getElementById('dot-toggle').classList.toggle('active', newVal);
         }
 
-        function setGlow(val) {
-            if (!light) return;
-            light.setOptions({ glowSize: val + 'px' });
-        }
-
-        function applyInitialUIState() {
-            stage.style.cursor = 'none';
-            document.documentElement.style.setProperty('--active-theme', '#22c55e');
+        function toggleSource() {
+            const next = light.options.sourcePosition === 'top' ? 'bottom' : 'top';
+            light.setOptions({ sourcePosition: next });
+            document.getElementById('pos-toggle').classList.toggle('active', next === 'bottom');
         }
     </script>
 </body>
-
 </html>
