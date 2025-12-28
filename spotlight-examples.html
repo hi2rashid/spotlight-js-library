@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotlight Lab - Clean Implementation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 
+        Updated library URL to use jsDelivr. 
+        GitHub's raw.githubusercontent.com serves files as 'text/plain', 
+        which browsers block from executing for security reasons. 
+    -->
+    <script src="https://cdn.jsdelivr.net/gh/hi2rashid/spotlight-js-library@main/spotlight-js-full.js"></script>
+    <style>
+        body {
+            background-color: #020617;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Container for the spotlight engine */
+        #spotlight-stage {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .content-bg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: #1e293b;
+            font-family: sans-serif;
+            font-size: 2rem;
+            font-weight: bold;
+            user-select: none;
+            text-align: center;
+            padding: 20px;
+            pointer-events: none;
+        }
+
+        /* UI Control Panel */
+        .ui-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px;
+            border-radius: 12px;
+            z-index: 100;
+            width: 260px;
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .tiny-btn {
+            padding: 4px 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s;
+        }
+
+        .tiny-btn:hover { background: rgba(255,255,255,0.15); }
+
+        .tiny-btn.active {
+            background: var(--active-theme, #22c55e);
+            color: black;
+            border-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Stage where library will inject elements -->
+    <div id="spotlight-stage">
+        <div class="content-bg">SYSTEM READY</div>
+    </div>
+
+    <!-- UI Panel (Interactive Example) -->
+    <div class="ui-panel">
+        <h2 class="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Spotlight Lab</h2>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Control Mode</label>
+                <div class="flex gap-2">
+                    <button id="btn-mouse" onclick="setMode('mouse')" class="tiny-btn flex-1 active">Mouse</button>
+                    <button id="btn-fixed" onclick="setMode('fixed')" class="tiny-btn flex-1">Fixed</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Source Position</label>
+                <div class="flex gap-2">
+                    <button id="btn-top" onclick="setPos('top')" class="tiny-btn flex-1 active">Top</button>
+                    <button id="btn-bottom" onclick="setPos('bottom')" class="tiny-btn flex-1">Bottom</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Aesthetics</label>
+                <div class="flex gap-2 mb-2">
+                    <button id="btn-dot" onclick="toggleOption('showDot')" class="tiny-btn flex-1 active">Dot</button>
+                    <button id="btn-fill" onclick="toggleOption('showFill')" class="tiny-btn flex-1 active">Fill</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setColor('#22c55e')" class="tiny-btn">Green</button>
+                    <button onclick="setColor('#ef4444')" class="tiny-btn">Red</button>
+                    <button onclick="setColor('#3b82f6')" class="tiny-btn">Blue</button>
+                    <button onclick="setColor('#ffffff')" class="tiny-btn">White</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] text-slate-500 block mb-2 uppercase">Glow Intensity</label>
+                <input type="range" min="0" max="100" value="40" oninput="setGlow(this.value)" class="w-full accent-green-500 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+        
+        <div id="instruction" class="mt-6 pt-4 border-t border-slate-800 text-[9px] text-slate-500 italic">
+            Move mouse on canvas to guide focus
+        </div>
+    </div>
+
+    <script>
+        /**
+         * INITIALIZATION AND EXAMPLE INTERFACE
+         */
+        const stage = document.getElementById('spotlight-stage');
+        let light;
+
+        window.onload = () => {
+            // Verify if the Spotlight class exists after library load
+            if (typeof Spotlight !== 'undefined') {
+                light = new Spotlight({ container: stage });
+                applyInitialUIState();
+            } else {
+                console.error("Spotlight is not defined. Ensure the library script loaded correctly.");
+                document.getElementById('instruction').textContent = "Library error: Reference not found.";
+            }
+        };
+
+        function setMode(mode) {
+            if (!light) return;
+            light.setOptions({ mode });
+            document.getElementById('btn-mouse').classList.toggle('active', mode === 'mouse');
+            document.getElementById('btn-fixed').classList.toggle('active', mode === 'fixed');
+            stage.style.cursor = mode === 'mouse' ? 'none' : 'crosshair';
+            document.getElementById('instruction').textContent = mode === 'mouse' ? 'Move mouse to guide focus' : 'Click to set focus point';
+        }
+
+        function setPos(pos) {
+            if (!light) return;
+            light.setOptions({ sourcePosition: pos });
+            document.getElementById('btn-top').classList.toggle('active', pos === 'top');
+            document.getElementById('btn-bottom').classList.toggle('active', pos === 'bottom');
+        }
+
+        function toggleOption(key) {
+            if (!light) return;
+            const next = !light.options[key];
+            light.setOptions({ [key]: next });
+            document.getElementById(key === 'showDot' ? 'btn-dot' : 'btn-fill').classList.toggle('active', next);
+        }
+
+        function setColor(color) {
+            if (!light) return;
+            light.setOptions({ color });
+            document.documentElement.style.setProperty('--active-theme', color);
+        }
+
+        function setGlow(val) {
+            if (!light) return;
+            light.setOptions({ glowSize: val + 'px' });
+        }
+
+        function applyInitialUIState() {
+            stage.style.cursor = 'none';
+            document.documentElement.style.setProperty('--active-theme', '#22c55e');
+        }
+    </script>
+</body>
+</html>
