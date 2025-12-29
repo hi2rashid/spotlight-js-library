@@ -14,7 +14,7 @@ Mobile optimized and easy to integrate.
 ## 🎥 Demo
 
 The spotlight effect in action:
-
+[See Example demo](https://hi2rashid.github.io/spotlight-js-library/)
 ![Spotlight Demo](https://github.com/hi2rashid/spotlight-js-library/blob/main/spotlight-demo.gif)
 
 ## 🚀 Usage
